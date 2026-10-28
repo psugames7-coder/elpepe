@@ -1,0 +1,15 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.kephale.psuattributes.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "LivingEntityDamageMixin",
+    "PlayerSweepMixin",
+    "PlayerGlideMixin",
+    "EnchantmentHelperMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

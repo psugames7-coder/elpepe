@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "psuattributes",
+  "version": "${version}",
+  "name": "PsuAttributes",
+  "description": "Custom combat attributes for mace, spear and sword.",
+  "authors": ["Kephale"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.kephale.psuattributes.PsuAttributes"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "mixins": ["psuattributes.mixins.json"]
+}
