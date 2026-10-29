@@ -111,7 +111,8 @@ public final class PsuAttributes implements ModInitializer {
                     if (set.contains(AttributeType.SPEAR)) SpearAbility.tick(player, st, now);
                     if (set.contains(AttributeType.SWORD)) SwordAbility.tick(player, st, now);
                     st.macePendingLevel = -1;
-                    st.maceAirborne = false;
+                    st.maceHit = false;
+                    st.maceSmash = false;
                 }
                 if (now % 10 == 0) Hud.tick(player, now);
             } catch (Throwable t) {
@@ -127,7 +128,10 @@ public final class PsuAttributes implements ModInitializer {
             ServerPlayerEntity killer = null;
             if (source.getAttacker() instanceof ServerPlayerEntity p) killer = p;
             else if (player.getAttackingPlayer() instanceof ServerPlayerEntity p) killer = p;
-            if (killer != null && killer != player) Flight.onKill(killer);
+            if (killer != null && killer != player) {
+                Flight.onKill(killer);
+                if (has(killer, AttributeType.MACE)) MaceAbility.onKill(killer, state(killer));
+            }
 
             CombatLog.clear(player.getUuid());
 
@@ -136,8 +140,8 @@ public final class PsuAttributes implements ModInitializer {
             int now = now();
             if (st.maceEmpowered) MaceAbility.startCooldown(player, st, now);
             st.maceHits = 0;
-            if (st.spearAirChain) SpearAbility.startCooldown(player, st, now, "Died");
-            if (st.swordActive) SwordAbility.end(player, st, now, "Died");
+            if (st.spearAirChain) SpearAbility.startCooldown(st, now);
+            if (st.swordActive) SwordAbility.end(player, st, now);
             else st.swordHits = 0;
         } catch (Throwable t) {
             LOGGER.warn("PsuAttributes: death handling failed", t);
