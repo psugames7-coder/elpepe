@@ -23,14 +23,24 @@ public abstract class EnchantmentHelperMixin {
     @WrapMethod(method = "onTargetDamaged(Lnet/minecraft/server/world/ServerWorld;Lnet/minecraft/entity/Entity;Lnet/minecraft/entity/damage/DamageSource;Lnet/minecraft/item/ItemStack;)V")
     private static void psuattributes$targetDamaged(ServerWorld world, Entity target, DamageSource source,
                                                     ItemStack weapon, Operation<Void> original) {
-        original.call(world, target, source, MaceAbility.overrideWeapon(source, weapon));
+        MaceAbility.Prepared prep = MaceAbility.prepare(source, weapon);
+        try {
+            original.call(world, target, source, prep.weapon());
+        } finally {
+            prep.restore();
+        }
     }
 
     @WrapMethod(method = "onTargetDamaged(Lnet/minecraft/server/world/ServerWorld;Lnet/minecraft/entity/Entity;Lnet/minecraft/entity/damage/DamageSource;Lnet/minecraft/item/ItemStack;Ljava/util/function/Consumer;)V")
     private static void psuattributes$targetDamagedCallback(ServerWorld world, Entity target, DamageSource source,
                                                             ItemStack weapon, Consumer<Item> breakCallback,
                                                             Operation<Void> original) {
-        original.call(world, target, source, MaceAbility.overrideWeapon(source, weapon), breakCallback);
+        MaceAbility.Prepared prep = MaceAbility.prepare(source, weapon);
+        try {
+            original.call(world, target, source, prep.weapon(), breakCallback);
+        } finally {
+            prep.restore();
+        }
     }
 
     @Inject(method = "onAttack(Lnet/minecraft/server/world/ServerWorld;Lnet/minecraft/entity/Entity;)V", at = @At("HEAD"), cancellable = true)
