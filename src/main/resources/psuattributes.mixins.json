@@ -7,7 +7,11 @@
     "LivingEntityDamageMixin",
     "PlayerSweepMixin",
     "PlayerGlideMixin",
-    "EnchantmentHelperMixin"
+    "EnchantmentHelperMixin",
+    "PiercingWeaponMixin",
+    "PlayerEntityAccessor",
+    "LivingEntityInvoker",
+    "HungerManagerAccessor"
   ],
   "injectors": {
     "defaultRequire": 0
