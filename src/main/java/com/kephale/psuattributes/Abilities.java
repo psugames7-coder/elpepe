@@ -17,17 +17,22 @@ public final class Abilities {
 
     public static int sweepDepth;
 
+    private static ItemStack weapon(DamageSource source) {
+        ItemStack weapon = source.getWeaponStack();
+        return weapon == null ? ItemStack.EMPTY : weapon;
+    }
+
     public static float beforeDamage(LivingEntity target, DamageSource source, float amount) {
         try {
             if (sweepDepth > 0) return amount;
             if (!(source.getAttacker() instanceof ServerPlayerEntity player) || source.getSource() != player) return amount;
-            ItemStack weapon = source.getWeaponStack();
-            if (weapon == null || weapon.isEmpty()) return amount;
+            ItemStack weapon = weapon(source);
             PsuAttributes mod = PsuAttributes.get();
             int now = mod.now();
             float out = amount;
-            if (mod.has(player, AttributeType.MACE)) out = MaceAbility.beforeDamage(player, mod.state(player), weapon, out, now);
-            if (mod.has(player, AttributeType.SWORD)) out = SwordAbility.beforeDamage(mod.state(player), weapon, out);
+            if (mod.has(player, AttributeType.MACE)) out = MaceAbility.beforeDamage(player, mod.state(player), source, weapon, out, now);
+            if (Float.isNaN(out)) return out;
+            if (mod.has(player, AttributeType.SWORD)) out = SwordAbility.beforeDamage(player, mod.state(player), weapon, out);
             return out;
         } catch (Throwable t) {
             PsuAttributes.LOGGER.warn("PsuAttributes: beforeDamage failed", t);
@@ -53,9 +58,8 @@ public final class Abilities {
 
             if (sweepDepth > 0) return;
             if (!(attackerEntity instanceof ServerPlayerEntity player) || source.getSource() != player) return;
-            ItemStack weapon = source.getWeaponStack();
-            if (weapon == null || weapon.isEmpty()) return;
-            if (mod.has(player, AttributeType.MACE)) MaceAbility.afterDamage(player, mod.state(player), weapon, hit, now);
+            ItemStack weapon = weapon(source);
+            if (mod.has(player, AttributeType.MACE)) MaceAbility.afterDamage(player, mod.state(player), hit, now);
             if (mod.has(player, AttributeType.SWORD)) SwordAbility.afterHit(player, mod.state(player), target, weapon, hit, now);
         } catch (Throwable t) {
             PsuAttributes.LOGGER.warn("PsuAttributes: afterDamage failed", t);
