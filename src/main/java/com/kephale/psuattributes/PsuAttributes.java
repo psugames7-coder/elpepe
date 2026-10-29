@@ -10,7 +10,6 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
 
 import java.nio.file.Path;
 import java.util.EnumSet;
@@ -52,6 +51,7 @@ public final class PsuAttributes implements ModInitializer {
             server = null;
             states.clear();
             CombatLog.clearAll();
+            Hud.clearAll();
             data.save();
         });
         ServerTickEvents.END_SERVER_TICK.register(this::tick);
@@ -63,6 +63,7 @@ public final class PsuAttributes implements ModInitializer {
             } catch (Throwable t) {
                 LOGGER.warn("PsuAttributes: combat log failed", t);
             }
+            Hud.remove(handler.player.getUuid());
             data.saveIfDirty();
         });
 
@@ -89,7 +90,11 @@ public final class PsuAttributes implements ModInitializer {
     public void resetState(UUID id, AttributeType type) {
         PlayerState s = states.get(id);
         if (s == null) return;
-        if (type == null || type == AttributeType.MACE) s.resetMace();
+        if (type == null || type == AttributeType.MACE) {
+            s.resetMace();
+            ServerPlayerEntity online = server == null ? null : server.getPlayerManager().getPlayer(id);
+            if (online != null) MaceAbility.clearItemCooldown(online);
+        }
         if (type == null || type == AttributeType.SPEAR) s.resetSpear();
         if (type == null || type == AttributeType.SWORD) s.resetSword();
     }
@@ -106,31 +111,14 @@ public final class PsuAttributes implements ModInitializer {
                     if (set.contains(AttributeType.SPEAR)) SpearAbility.tick(player, st, now);
                     if (set.contains(AttributeType.SWORD)) SwordAbility.tick(player, st, now);
                     st.macePendingLevel = -1;
-                    st.maceSmash = false;
+                    st.maceAirborne = false;
                 }
-                if (now % 10 == 0) hud(player, now);
+                if (now % 10 == 0) Hud.tick(player, now);
             } catch (Throwable t) {
                 LOGGER.warn("PsuAttributes: tick failed for {}", player.getGameProfile().name(), t);
             }
         }
         if (now % 1200 == 0) data.saveIfDirty();
-    }
-
-    private void hud(ServerPlayerEntity player, int now) {
-        boolean combat = CombatLog.inCombat(player, now);
-        boolean showFlight = config.flightEnabled && (combat || (config.flightDrainOutsideCombat && player.isGliding()));
-        if (!combat && !showFlight) return;
-        if (now - state(player).lastBarTick < 40) return;
-        StringBuilder line = new StringBuilder();
-        if (combat) {
-            int secs = (CombatLog.ticksLeft(player, now) + 19) / 20;
-            line.append("§c⚔ ").append(secs / 60).append(':').append(String.format("%02d", secs % 60));
-        }
-        if (showFlight) {
-            if (!line.isEmpty()) line.append("   ");
-            line.append(Flight.hud(player));
-        }
-        player.sendMessage(Text.literal(line.toString()), true);
     }
 
     private void onDeath(LivingEntity entity, DamageSource source) {
