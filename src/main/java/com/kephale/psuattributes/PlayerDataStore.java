@@ -26,8 +26,12 @@ public final class PlayerDataStore {
         public double damageBank;
         public String hudCombat = "ACTION_BAR";
         public String hudFlight = "ACTION_BAR";
-        public String hudAbility = "ACTION_BAR";
+        public String hudAbility = "CHAT";
+        public String hudCooldown = "ACTION_BAR";
+        public int hudVersion;
     }
+
+    private static final int HUD_VERSION = 1;
 
     private final Path path;
     private Map<String, Entry> players = new LinkedHashMap<>();
@@ -52,13 +56,26 @@ public final class PlayerDataStore {
             entry.name = name;
             dirty = true;
         }
+        ModConfig config = PsuAttributes.get().config;
         if (entry.flightTicks < 0) {
-            entry.flightTicks = Math.max(0, PsuAttributes.get().config.flightStartSeconds) * 20;
+            entry.flightTicks = Math.max(0, config.flightStartSeconds) * 20;
+            dirty = true;
+        }
+        int max = Math.max(0, config.flightMaxSeconds) * 20;
+        if (entry.flightTicks > max) {
+            entry.flightTicks = max;
+            dirty = true;
+        }
+        if (entry.hudVersion < HUD_VERSION) {
+            entry.hudAbility = "CHAT";
+            entry.hudCooldown = "ACTION_BAR";
+            entry.hudVersion = HUD_VERSION;
             dirty = true;
         }
         if (entry.hudCombat == null) entry.hudCombat = "ACTION_BAR";
         if (entry.hudFlight == null) entry.hudFlight = "ACTION_BAR";
-        if (entry.hudAbility == null) entry.hudAbility = "ACTION_BAR";
+        if (entry.hudAbility == null) entry.hudAbility = "CHAT";
+        if (entry.hudCooldown == null) entry.hudCooldown = "ACTION_BAR";
         return entry;
     }
 
