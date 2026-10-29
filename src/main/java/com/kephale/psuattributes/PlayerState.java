@@ -4,7 +4,7 @@ public final class PlayerState {
 
     public int maceHits;
     public boolean maceEmpowered;
-    public boolean maceSmash;
+    public boolean maceAirborne;
     public int macePendingLevel = -1;
     public int maceCooldownUntil;
     public boolean maceCooling;
@@ -18,12 +18,10 @@ public final class PlayerState {
     public int swordCooldownUntil;
     public boolean swordCooling;
 
-    public int lastBarTick = -1000;
-
     public void resetMace() {
         maceHits = 0;
         maceEmpowered = false;
-        maceSmash = false;
+        maceAirborne = false;
         macePendingLevel = -1;
         maceCooldownUntil = 0;
         maceCooling = false;
