@@ -15,6 +15,7 @@ public abstract class LivingEntityDamageMixin {
     private boolean psuattributes$damage(ServerWorld world, DamageSource source, float amount, Operation<Boolean> original) {
         LivingEntity self = (LivingEntity) (Object) this;
         float scaled = Abilities.beforeDamage(self, source, amount);
+        if (Float.isNaN(scaled)) return false;
         float before = self.getHealth() + self.getAbsorptionAmount();
         boolean hit = original.call(world, source, scaled);
         float after = self.isDead() ? 0.0F : self.getHealth() + self.getAbsorptionAmount();
