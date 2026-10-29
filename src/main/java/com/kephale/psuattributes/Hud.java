@@ -2,9 +2,11 @@ package com.kephale.psuattributes;
 
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.boss.ServerBossBar;
+import net.minecraft.item.Items;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
+import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -23,7 +25,8 @@ public final class Hud {
     public enum Element {
         COMBAT("Combat timer"),
         FLIGHT("Flight time"),
-        ABILITY("Ability messages");
+        ABILITY("Ability messages"),
+        COOLDOWN("Cooldowns");
 
         public final String label;
 
@@ -71,6 +74,7 @@ public final class Hud {
             case COMBAT -> d.hudCombat;
             case FLIGHT -> d.hudFlight;
             case ABILITY -> d.hudAbility;
+            case COOLDOWN -> d.hudCooldown;
         };
         try {
             Spot spot = Spot.valueOf(raw);
@@ -87,6 +91,7 @@ public final class Hud {
             case COMBAT -> d.hudCombat = spot.name();
             case FLIGHT -> d.hudFlight = spot.name();
             case ABILITY -> d.hudAbility = spot.name();
+            case COOLDOWN -> d.hudCooldown = spot.name();
         }
         PsuAttributes.get().data.markDirty();
     }
@@ -129,6 +134,7 @@ public final class Hud {
                 && (combat || (mod.config.flightDrainOutsideCombat && player.isGliding()));
         Spot combatSpot = spot(player, Element.COMBAT);
         Spot flightSpot = spot(player, Element.FLIGHT);
+        Spot cooldownSpot = spot(player, Element.COOLDOWN);
 
         String combatText = null;
         if (combat) {
@@ -136,6 +142,7 @@ public final class Hud {
             combatText = "§c⚔ " + secs / 60 + ":" + String.format("%02d", secs % 60);
         }
         String flightText = flight ? Flight.hud(player) : null;
+        String cooldownText = cooldowns(player, now);
 
         List<String> action = new ArrayList<>();
         List<String> sub = new ArrayList<>();
@@ -146,6 +153,10 @@ public final class Hud {
         if (flightText != null) {
             if (flightSpot == Spot.ACTION_BAR) action.add(flightText);
             else if (flightSpot == Spot.SUBTITLE) sub.add(flightText);
+        }
+        if (cooldownText != null) {
+            if (cooldownSpot == Spot.ACTION_BAR) action.add(cooldownText);
+            else if (cooldownSpot == Spot.SUBTITLE) sub.add(cooldownText);
         }
         if (!action.isEmpty() && now - v.lastAction >= HOLD) {
             player.sendMessage(Text.literal(String.join("   ", action)), true);
@@ -164,10 +175,56 @@ public final class Hud {
                 flightText, flight ? Flight.fraction(player) : 0.0F,
                 flight && Flight.locked(player) ? BossBar.Color.WHITE : BossBar.Color.BLUE);
 
+        updateBar(v, Element.COOLDOWN, player, cooldownText != null && cooldownSpot == Spot.BOSS_BAR,
+                cooldownText, cooldownFraction(player, now), BossBar.Color.PURPLE);
+
         ServerBossBar abilityBar = v.bars.get(Element.ABILITY);
         if (abilityBar != null && (now >= v.abilityUntil || spot(player, Element.ABILITY) != Spot.BOSS_BAR)) {
             abilityBar.clearPlayers();
         }
+    }
+
+    private static String cooldowns(ServerPlayerEntity player, int now) {
+        PsuAttributes mod = PsuAttributes.get();
+        PlayerState s = mod.peek(player);
+        if (s == null) return null;
+        List<String> parts = new ArrayList<>();
+        if (showMace(mod, player)) add(parts, MaceAbility.cooldownText(s, now));
+        if (showSpear(mod, player)) add(parts, SpearAbility.cooldownText(s, now));
+        if (showSword(mod, player)) add(parts, SwordAbility.cooldownText(s, now));
+        return parts.isEmpty() ? null : "§c" + String.join("  ", parts);
+    }
+
+    private static boolean showMace(PsuAttributes mod, ServerPlayerEntity player) {
+        return mod.has(player, AttributeType.MACE) && player.getMainHandStack().isOf(Items.MACE)
+                && !ModConfig.MACE_DISABLED.equals(mod.config.maceCooldownMode);
+    }
+
+    private static boolean showSpear(PsuAttributes mod, ServerPlayerEntity player) {
+        return mod.has(player, AttributeType.SPEAR) && SpearAbility.holdsLunge(player);
+    }
+
+    private static boolean showSword(PsuAttributes mod, ServerPlayerEntity player) {
+        return mod.has(player, AttributeType.SWORD) && player.getMainHandStack().isIn(ItemTags.SWORDS);
+    }
+
+    private static void add(List<String> parts, String text) {
+        if (text != null) parts.add(text);
+    }
+
+    private static float cooldownFraction(ServerPlayerEntity player, int now) {
+        PsuAttributes mod = PsuAttributes.get();
+        PlayerState s = mod.peek(player);
+        if (s == null) return 0.0F;
+        float best = 0.0F;
+        if (s.maceCooling && showMace(mod, player)) best = Math.max(best, frac(s.maceCooldownUntil, now, mod.config.maceCooldownSeconds));
+        if (s.spearCooling && showSpear(mod, player)) best = Math.max(best, frac(s.spearCooldownUntil, now, mod.config.spearCooldownSeconds));
+        if (s.swordCooling && showSword(mod, player)) best = Math.max(best, frac(s.swordCooldownUntil, now, mod.config.swordCooldownSeconds));
+        return best;
+    }
+
+    private static float frac(int until, int now, int seconds) {
+        return Math.max(0, until - now) / (float) Math.max(1, seconds * 20);
     }
 
     static void remove(UUID id) {
