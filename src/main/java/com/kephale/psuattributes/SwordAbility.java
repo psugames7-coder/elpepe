@@ -54,7 +54,7 @@ public final class SwordAbility {
             s.swordCooling = false;
             Abilities.bar(player, "Combo ready", Formatting.GREEN);
         } else if (now % 10 == 0 && player.getMainHandStack().isIn(ItemTags.SWORDS)) {
-            Abilities.bar(player, "Combo cooldown " + Abilities.secondsLeft(s.swordCooldownUntil, now) + "s", Formatting.RED);
+            Abilities.barRepeat(player, "Combo cooldown " + Abilities.secondsLeft(s.swordCooldownUntil, now) + "s", Formatting.RED);
         }
     }
 }
