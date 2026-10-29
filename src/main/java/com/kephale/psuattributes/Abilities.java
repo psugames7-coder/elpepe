@@ -9,7 +9,6 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 public final class Abilities {
@@ -68,9 +67,11 @@ public final class Abilities {
     }
 
     public static void bar(ServerPlayerEntity player, String message, Formatting color) {
-        PsuAttributes mod = PsuAttributes.get();
-        mod.state(player).lastBarTick = mod.now();
-        player.sendMessage(Text.literal(message).formatted(color), true);
+        Hud.ability(player, message, color, false);
+    }
+
+    public static void barRepeat(ServerPlayerEntity player, String message, Formatting color) {
+        Hud.ability(player, message, color, true);
     }
 
     public static int secondsLeft(int until, int now) {
