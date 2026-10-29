@@ -24,20 +24,17 @@ public final class SpearAbility {
             if (mod == null || !mod.has(player, AttributeType.SPEAR)) return true;
             if (!holdsLunge(player)) return true;
             if (player.hasVehicle() || player.isGliding() || player.isTouchingWater()) return true;
-            if (player.isSneaking()) return false;
+            if (mod.config.spearSneakSave && player.isSneaking()) return false;
             PlayerState s = mod.state(player);
             int now = mod.now();
-            if (now < s.spearCooldownUntil) {
-                Abilities.barRepeat(player, "Lunge cooldown " + Abilities.secondsLeft(s.spearCooldownUntil, now) + "s", Formatting.RED);
-                return false;
-            }
+            if (s.spearCooling && now < s.spearCooldownUntil) return false;
             if (s.spearAirChain) return true;
             if (player.isOnGround()) {
-                startCooldown(player, s, now, "Lunge used");
+                startCooldown(s, now);
                 return true;
             }
             s.spearAirChain = true;
-            Abilities.bar(player, "Air lunge: unlimited until you land", Formatting.AQUA);
+            Abilities.bar(player, "Air lunges", Formatting.AQUA);
             return true;
         } catch (Throwable t) {
             PsuAttributes.LOGGER.warn("PsuAttributes: lunge check failed", t);
@@ -45,32 +42,39 @@ public final class SpearAbility {
         }
     }
 
-    private static boolean holdsLunge(ServerPlayerEntity player) {
+    public static boolean savesHunger(ServerPlayerEntity player) {
+        PsuAttributes mod = PsuAttributes.get();
+        return mod != null && mod.config.spearSneakSave && player.isSneaking()
+                && mod.has(player, AttributeType.SPEAR) && holdsLunge(player);
+    }
+
+    static boolean holdsLunge(ServerPlayerEntity player) {
         RegistryEntry<Enchantment> lunge = Abilities.enchant(player, LUNGE);
         if (lunge == null) return false;
         return EnchantmentHelper.getLevel(lunge, player.getMainHandStack()) > 0
                 || EnchantmentHelper.getLevel(lunge, player.getOffHandStack()) > 0;
     }
 
-    static void startCooldown(ServerPlayerEntity player, PlayerState s, int now, String reason) {
+    static void startCooldown(PlayerState s, int now) {
         int ticks = Math.max(0, PsuAttributes.get().config.spearCooldownSeconds) * 20;
         s.spearAirChain = false;
         s.spearCooldownUntil = now + ticks;
         s.spearCooling = ticks > 0;
-        if (s.spearCooling) Abilities.bar(player, reason + ". Lunge cooldown " + (ticks / 20) + "s", Formatting.RED);
     }
 
     static void tick(ServerPlayerEntity player, PlayerState s, int now) {
         if (s.spearAirChain && player.isOnGround()) {
-            startCooldown(player, s, now, "Landed");
+            startCooldown(s, now);
             return;
         }
-        if (!s.spearCooling) return;
-        if (now >= s.spearCooldownUntil) {
+        if (s.spearCooling && now >= s.spearCooldownUntil) {
             s.spearCooling = false;
-            Abilities.bar(player, "Lunge ready", Formatting.GREEN);
-        } else if (now % 10 == 0 && holdsLunge(player)) {
-            Abilities.barRepeat(player, "Lunge cooldown " + Abilities.secondsLeft(s.spearCooldownUntil, now) + "s", Formatting.RED);
+            Abilities.bar(player, "Lunge available", Formatting.GREEN);
         }
+    }
+
+    static String cooldownText(PlayerState s, int now) {
+        if (!s.spearCooling || now >= s.spearCooldownUntil) return null;
+        return "Lunge " + Abilities.secondsLeft(s.spearCooldownUntil, now) + "s";
     }
 }
