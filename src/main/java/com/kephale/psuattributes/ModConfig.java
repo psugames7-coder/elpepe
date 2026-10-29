@@ -18,12 +18,18 @@ import java.util.UUID;
 public final class ModConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final int DATA_VERSION = 2;
+    private static final int DATA_VERSION = 3;
+
+    public static final String MACE_NO_WIND_BURST = "nowindburst";
+    public static final String MACE_VANILLA = "vanilla";
+    public static final String MACE_DISABLED = "disabled";
+    public static final String[] MACE_MODES = {MACE_NO_WIND_BURST, MACE_VANILLA, MACE_DISABLED};
 
     public int dataVersion = DATA_VERSION;
 
     public int maceCooldownSeconds = 20;
     public double maceMultiplier = 1.5;
+    public String maceCooldownMode = MACE_NO_WIND_BURST;
 
     public int spearCooldownSeconds = 15;
 
@@ -33,15 +39,15 @@ public final class ModConfig {
 
     public boolean combatLogEnabled = true;
     public int combatSeconds = 120;
-    public double logoutDamage = 12.0;
+    public double logoutHearts = 8.0;
 
     public boolean flightEnabled = true;
     public boolean flightDrainOutsideCombat = false;
-    public int flightStartSeconds = 30;
-    public int flightMaxSeconds = 35;
+    public int flightStartSeconds = 20;
+    public int flightMaxSeconds = 25;
     public int flightUnlockSeconds = 20;
-    public double flightDamageHearts = 5.0;
-    public int flightPerDamageSeconds = 5;
+    public double flightDamageHearts = 10.0;
+    public double flightPerDamageSeconds = 2.5;
     public int flightPerKillSeconds = 10;
 
     public Map<String, PlayerEntry> players = new LinkedHashMap<>();
@@ -67,10 +73,43 @@ public final class ModConfig {
         config.path = path;
         config.cache = new HashMap<>();
         if (config.players == null) config.players = new LinkedHashMap<>();
+        if (config.maceCooldownMode == null || maceModeIndex(config.maceCooldownMode) < 0) {
+            config.maceCooldownMode = MACE_NO_WIND_BURST;
+        }
         if (config.dataVersion < DATA_VERSION) config.dataVersion = DATA_VERSION;
         config.rebuildCache();
         config.save();
         return config;
+    }
+
+    public void resetSettings() {
+        ModConfig d = new ModConfig();
+        maceCooldownSeconds = d.maceCooldownSeconds;
+        maceMultiplier = d.maceMultiplier;
+        maceCooldownMode = d.maceCooldownMode;
+        spearCooldownSeconds = d.spearCooldownSeconds;
+        swordComboHits = d.swordComboHits;
+        swordMultiplier = d.swordMultiplier;
+        swordCooldownSeconds = d.swordCooldownSeconds;
+        combatLogEnabled = d.combatLogEnabled;
+        combatSeconds = d.combatSeconds;
+        logoutHearts = d.logoutHearts;
+        flightEnabled = d.flightEnabled;
+        flightDrainOutsideCombat = d.flightDrainOutsideCombat;
+        flightStartSeconds = d.flightStartSeconds;
+        flightMaxSeconds = d.flightMaxSeconds;
+        flightUnlockSeconds = d.flightUnlockSeconds;
+        flightDamageHearts = d.flightDamageHearts;
+        flightPerDamageSeconds = d.flightPerDamageSeconds;
+        flightPerKillSeconds = d.flightPerKillSeconds;
+        save();
+    }
+
+    public static int maceModeIndex(String mode) {
+        for (int i = 0; i < MACE_MODES.length; i++) {
+            if (MACE_MODES[i].equalsIgnoreCase(mode)) return i;
+        }
+        return -1;
     }
 
     public void save() {
