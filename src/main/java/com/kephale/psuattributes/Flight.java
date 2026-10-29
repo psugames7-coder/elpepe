@@ -1,5 +1,6 @@
 package com.kephale.psuattributes;
 
+import com.kephale.psuattributes.mixin.LivingEntityInvoker;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Formatting;
 
@@ -20,7 +21,7 @@ public final class Flight {
             if (!drains(player, now)) return true;
             PlayerDataStore.Entry d = mod.data.get(player);
             if (d.flightLocked || d.flightTicks <= 0) {
-                Abilities.barRepeat(player, "Flight locked " + (d.flightTicks / 20) + "/" + mod.config.flightUnlockSeconds + "s", Formatting.RED);
+                Abilities.barRepeat(player, "✈ locked " + (d.flightTicks / 20) + "/" + mod.config.flightUnlockSeconds + "s", Formatting.RED);
                 return false;
             }
             return true;
@@ -36,7 +37,7 @@ public final class Flight {
         if (player.isCreative() || player.isSpectator()) return;
         PlayerDataStore.Entry d = mod.data.get(player);
         if (d.flightLocked || d.flightTicks <= 0) {
-            player.stopGliding();
+            stopGliding(player);
             return;
         }
         d.flightTicks--;
@@ -44,8 +45,16 @@ public final class Flight {
         if (d.flightTicks <= 0) {
             d.flightTicks = 0;
             d.flightLocked = true;
-            player.stopGliding();
-            Abilities.bar(player, "Out of flight time. Earn " + mod.config.flightUnlockSeconds + "s to fly again", Formatting.RED);
+            stopGliding(player);
+            Abilities.bar(player, "Out of flight", Formatting.RED);
+        }
+    }
+
+    private static void stopGliding(ServerPlayerEntity player) {
+        try {
+            ((LivingEntityInvoker) player).psuattributes$stopGliding();
+        } catch (Throwable t) {
+            PsuAttributes.LOGGER.warn("PsuAttributes: could not stop gliding", t);
         }
     }
 
