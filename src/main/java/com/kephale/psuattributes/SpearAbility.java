@@ -24,10 +24,11 @@ public final class SpearAbility {
             if (mod == null || !mod.has(player, AttributeType.SPEAR)) return true;
             if (!holdsLunge(player)) return true;
             if (player.hasVehicle() || player.isGliding() || player.isTouchingWater()) return true;
+            if (player.isSneaking()) return false;
             PlayerState s = mod.state(player);
             int now = mod.now();
             if (now < s.spearCooldownUntil) {
-                Abilities.bar(player, "Lunge cooldown " + Abilities.secondsLeft(s.spearCooldownUntil, now) + "s", Formatting.RED);
+                Abilities.barRepeat(player, "Lunge cooldown " + Abilities.secondsLeft(s.spearCooldownUntil, now) + "s", Formatting.RED);
                 return false;
             }
             if (s.spearAirChain) return true;
@@ -69,7 +70,7 @@ public final class SpearAbility {
             s.spearCooling = false;
             Abilities.bar(player, "Lunge ready", Formatting.GREEN);
         } else if (now % 10 == 0 && holdsLunge(player)) {
-            Abilities.bar(player, "Lunge cooldown " + Abilities.secondsLeft(s.spearCooldownUntil, now) + "s", Formatting.RED);
+            Abilities.barRepeat(player, "Lunge cooldown " + Abilities.secondsLeft(s.spearCooldownUntil, now) + "s", Formatting.RED);
         }
     }
 }
