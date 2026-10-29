@@ -22,9 +22,11 @@ public final class HudMenu {
     private HudMenu() {}
 
     private static final int FIRST_OPTION = 2;
+    private static final int ROWS = 4;
+    private static final int SIZE = ROWS * 9;
 
     public static void open(ServerPlayerEntity player) {
-        SimpleInventory inv = new SimpleInventory(27);
+        SimpleInventory inv = new SimpleInventory(SIZE);
         player.openHandledScreen(new SimpleNamedScreenHandlerFactory(
                 (syncId, playerInv, ignored) -> new Handler(syncId, playerInv, inv, player),
                 Text.literal("HUD layout")));
@@ -35,6 +37,7 @@ public final class HudMenu {
             case COMBAT -> Items.IRON_SWORD;
             case FLIGHT -> Items.ELYTRA;
             case ABILITY -> Items.NETHER_STAR;
+            case COOLDOWN -> Items.CLOCK;
         };
     }
 
@@ -54,7 +57,7 @@ public final class HudMenu {
         private final ServerPlayerEntity owner;
 
         Handler(int syncId, PlayerInventory playerInv, SimpleInventory inv, ServerPlayerEntity owner) {
-            super(ScreenHandlerType.GENERIC_9X3, syncId, playerInv, inv, 3);
+            super(ScreenHandlerType.GENERIC_9X4, syncId, playerInv, inv, ROWS);
             this.inv = inv;
             this.owner = owner;
             render();
@@ -62,7 +65,7 @@ public final class HudMenu {
 
         @Override
         public void onSlotClick(int slot, int button, SlotActionType action, PlayerEntity player) {
-            if (slot < 0 || slot >= 27) return;
+            if (slot < 0 || slot >= SIZE) return;
             if (action != SlotActionType.PICKUP && action != SlotActionType.QUICK_MOVE) return;
             try {
                 int row = slot / 9;
@@ -80,7 +83,7 @@ public final class HudMenu {
         }
 
         private void render() {
-            for (int i = 0; i < 27; i++) inv.setStack(i, filler());
+            for (int i = 0; i < SIZE; i++) inv.setStack(i, filler());
             Hud.Element[] elements = Hud.Element.values();
             Hud.Spot[] spots = Hud.Spot.values();
             for (int row = 0; row < elements.length; row++) {
