@@ -42,12 +42,8 @@ public final class Commands {
     public static void register(PsuAttributes mod) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             ModConfig c = mod.config;
-            dispatcher.register(literal("hud").executes(ctx -> {
-                ServerPlayerEntity player = ctx.getSource().getPlayer();
-                if (player == null) return 0;
-                HudMenu.open(player);
-                return 1;
-            }));
+            dispatcher.register(literal("hud").executes(ctx -> hud(ctx)));
+            dispatcher.register(literal("settings").executes(ctx -> hud(ctx)));
 
             dispatcher.register(literal("psu")
                     .requires(Commands::isAdmin)
@@ -82,7 +78,10 @@ public final class Commands {
                             .then(intSetting(mod, "macecooldown", 0, 3600, () -> c.maceCooldownSeconds, v -> c.maceCooldownSeconds = v))
                             .then(doubleSetting(mod, "macemultiplier", () -> c.maceMultiplier, v -> c.maceMultiplier = v))
                             .then(maceModeSetting(mod))
+                            .then(doubleSetting(mod, "macelandgrace", () -> c.maceLandGraceSeconds, v -> c.maceLandGraceSeconds = v))
+                            .then(boolSetting(mod, "macekillreset", () -> c.maceKillReset, v -> c.maceKillReset = v))
                             .then(intSetting(mod, "spearcooldown", 0, 3600, () -> c.spearCooldownSeconds, v -> c.spearCooldownSeconds = v))
+                            .then(boolSetting(mod, "spearsneaksave", () -> c.spearSneakSave, v -> c.spearSneakSave = v))
                             .then(intSetting(mod, "swordhits", 1, 100, () -> c.swordComboHits, v -> c.swordComboHits = v))
                             .then(doubleSetting(mod, "swordmultiplier", () -> c.swordMultiplier, v -> c.swordMultiplier = v))
                             .then(intSetting(mod, "swordcooldown", 0, 3600, () -> c.swordCooldownSeconds, v -> c.swordCooldownSeconds = v))
@@ -179,6 +178,13 @@ public final class Commands {
         return flightGet(ctx, mod);
     }
 
+    private static int hud(CommandContext<ServerCommandSource> ctx) {
+        ServerPlayerEntity player = ctx.getSource().getPlayer();
+        if (player == null) return 0;
+        HudMenu.open(player);
+        return 1;
+    }
+
     private static int menu(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity player = ctx.getSource().getPlayer();
         if (player == null) return help(ctx);
@@ -197,7 +203,7 @@ public final class Commands {
         msg(ctx, "§e/psu settings");
         msg(ctx, "§e/psu set <setting> [value]");
         msg(ctx, "§e/psu config default §7puts every setting back to default");
-        msg(ctx, "§e/hud §7pick where each HUD shows (everyone)");
+        msg(ctx, "§e/hud §7or §e/settings §7pick where each HUD shows (everyone)");
         return 1;
     }
 
@@ -259,8 +265,9 @@ public final class Commands {
     private static int settings(CommandContext<ServerCommandSource> ctx, PsuAttributes mod) {
         ModConfig c = mod.config;
         msg(ctx, "§6Mace §7cooldown §f" + c.maceCooldownSeconds + "s §7multiplier §fx" + Abilities.fmt(c.maceMultiplier)
-                + " §7during cooldown §f" + c.maceCooldownMode);
-        msg(ctx, "§6Spear §7cooldown §f" + c.spearCooldownSeconds + "s");
+                + " §7mode §f" + c.maceCooldownMode + " §7land grace §f" + Abilities.fmt(c.maceLandGraceSeconds)
+                + "s §7kill reset §f" + (c.maceKillReset ? "on" : "off"));
+        msg(ctx, "§6Spear §7cooldown §f" + c.spearCooldownSeconds + "s §7sneak save §f" + (c.spearSneakSave ? "on" : "off"));
         msg(ctx, "§6Sword §7hits §f" + c.swordComboHits + " §7multiplier §fx" + Abilities.fmt(c.swordMultiplier)
                 + " §7cooldown §f" + c.swordCooldownSeconds + "s");
         msg(ctx, "§6Combat log §f" + (c.combatLogEnabled ? "on" : "off") + " §7timer §f" + c.combatSeconds
