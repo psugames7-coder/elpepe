@@ -75,7 +75,13 @@ public final class Menu {
         list.add(new Setting(19, Items.WIND_CHARGE, "Mace during cooldown", "", 1, 0, 2, false, true,
                 () -> Math.max(0, ModConfig.maceModeIndex(c.maceCooldownMode)),
                 v -> c.maceCooldownMode = ModConfig.MACE_MODES[(int) v],
-                "nowindburst, vanilla or disabled", ModConfig.MACE_MODES));
+                "What the mace does during its cooldown", ModConfig.MACE_MODES));
+        list.add(new Setting(20, Items.SLIME_BALL, "Mace land grace", "s", 0.25, 0, 10, false, false,
+                () -> c.maceLandGraceSeconds, v -> c.maceLandGraceSeconds = v, "Delay after landing before the cooldown"));
+        list.add(new Setting(21, Items.SKELETON_SKULL, "Mace kill reset", "", 1, 0, 1, true, true,
+                () -> c.maceKillReset ? 1 : 0, v -> c.maceKillReset = v > 0, "A player kill clears the mace cooldown"));
+        list.add(new Setting(23, Items.LEATHER_BOOTS, "Spear sneak save", "", 1, 0, 1, true, true,
+                () -> c.spearSneakSave ? 1 : 0, v -> c.spearSneakSave = v > 0, "Sneaking jabs never lunge or cost hunger"));
         list.add(new Setting(12, spear(), "Spear cooldown", "s", 1, 0, 3600, false, true,
                 () -> c.spearCooldownSeconds, v -> c.spearCooldownSeconds = (int) v, "After a ground lunge or an air chain"));
         list.add(new Setting(14, Items.IRON_SWORD, "Sword combo hits", "", 1, 1, 100, false, true,
@@ -261,9 +267,9 @@ public final class Menu {
             PsuAttributes mod = PsuAttributes.get();
             inv.setStack(SLOT_HEAD, head(selected, info(selected)));
             inv.setStack(SLOT_MACE, toggle(Items.MACE, "Mace", AttributeType.MACE,
-                    "§7Wind Burst I, none, then III and x" + Abilities.fmt(mod.config.maceMultiplier) + " until landing"));
+                    "§7WB I, none, then WB III x" + Abilities.fmt(mod.config.maceMultiplier) + " until landing"));
             inv.setStack(SLOT_SPEAR, toggle(spear(), "Spear", AttributeType.SPEAR,
-                    "§7Ground lunge once, air lunges until landing"));
+                    "§7One ground lunge, air lunges until landing"));
             inv.setStack(SLOT_SWORD, toggle(Items.DIAMOND_SWORD, "Sword", AttributeType.SWORD,
                     "§7" + mod.config.swordComboHits + " hits without getting hit, then x" + Abilities.fmt(mod.config.swordMultiplier)));
 
