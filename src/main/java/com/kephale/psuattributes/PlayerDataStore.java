@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public final class PlayerDataStore {
 
@@ -23,6 +24,9 @@ public final class PlayerDataStore {
         public int flightTicks = -1;
         public boolean flightLocked;
         public double damageBank;
+        public String hudCombat = "ACTION_BAR";
+        public String hudFlight = "ACTION_BAR";
+        public String hudAbility = "ACTION_BAR";
     }
 
     private final Path path;
@@ -52,7 +56,14 @@ public final class PlayerDataStore {
             entry.flightTicks = Math.max(0, PsuAttributes.get().config.flightStartSeconds) * 20;
             dirty = true;
         }
+        if (entry.hudCombat == null) entry.hudCombat = "ACTION_BAR";
+        if (entry.hudFlight == null) entry.hudFlight = "ACTION_BAR";
+        if (entry.hudAbility == null) entry.hudAbility = "ACTION_BAR";
         return entry;
+    }
+
+    public Entry find(UUID id) {
+        return players.get(id.toString());
     }
 
     public void markDirty() {
