@@ -42,9 +42,17 @@ public final class Commands {
     public static void register(PsuAttributes mod) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             ModConfig c = mod.config;
-            dispatcher.register(literal("attributes")
+            dispatcher.register(literal("hud").executes(ctx -> {
+                ServerPlayerEntity player = ctx.getSource().getPlayer();
+                if (player == null) return 0;
+                HudMenu.open(player);
+                return 1;
+            }));
+
+            dispatcher.register(literal("psu")
                     .requires(Commands::isAdmin)
-                    .executes(ctx -> help(ctx))
+                    .executes(ctx -> menu(ctx))
+                    .then(literal("menu").executes(ctx -> menu(ctx)))
                     .then(literal("help").executes(ctx -> help(ctx)))
                     .then(literal("give")
                             .then(argument("player", EntityArgumentType.player())
@@ -64,23 +72,30 @@ public final class Commands {
                                             .executes(ctx -> flightSet(ctx, mod)))))
                     .then(literal("list").executes(ctx -> list(ctx, mod)))
                     .then(literal("settings").executes(ctx -> settings(ctx, mod)))
+                    .then(literal("config")
+                            .then(literal("default").executes(ctx -> {
+                                mod.config.resetSettings();
+                                msg(ctx, "§aAll settings are back to default. Attribute grants were kept.");
+                                return 1;
+                            })))
                     .then(literal("set")
                             .then(intSetting(mod, "macecooldown", 0, 3600, () -> c.maceCooldownSeconds, v -> c.maceCooldownSeconds = v))
                             .then(doubleSetting(mod, "macemultiplier", () -> c.maceMultiplier, v -> c.maceMultiplier = v))
+                            .then(maceModeSetting(mod))
                             .then(intSetting(mod, "spearcooldown", 0, 3600, () -> c.spearCooldownSeconds, v -> c.spearCooldownSeconds = v))
                             .then(intSetting(mod, "swordhits", 1, 100, () -> c.swordComboHits, v -> c.swordComboHits = v))
                             .then(doubleSetting(mod, "swordmultiplier", () -> c.swordMultiplier, v -> c.swordMultiplier = v))
                             .then(intSetting(mod, "swordcooldown", 0, 3600, () -> c.swordCooldownSeconds, v -> c.swordCooldownSeconds = v))
                             .then(boolSetting(mod, "combatlog", () -> c.combatLogEnabled, v -> c.combatLogEnabled = v))
                             .then(intSetting(mod, "combatseconds", 0, 3600, () -> c.combatSeconds, v -> c.combatSeconds = v))
-                            .then(doubleSetting(mod, "logoutdamage", () -> c.logoutDamage, v -> c.logoutDamage = v))
+                            .then(doubleSetting(mod, "logouthearts", () -> c.logoutHearts, v -> c.logoutHearts = v))
                             .then(boolSetting(mod, "flight", () -> c.flightEnabled, v -> c.flightEnabled = v))
                             .then(boolSetting(mod, "flightoutsidecombat", () -> c.flightDrainOutsideCombat, v -> c.flightDrainOutsideCombat = v))
                             .then(intSetting(mod, "flightstart", 0, 3600, () -> c.flightStartSeconds, v -> c.flightStartSeconds = v))
                             .then(intSetting(mod, "flightmax", 0, 3600, () -> c.flightMaxSeconds, v -> c.flightMaxSeconds = v))
                             .then(intSetting(mod, "flightunlock", 0, 3600, () -> c.flightUnlockSeconds, v -> c.flightUnlockSeconds = v))
                             .then(doubleSetting(mod, "flightdamagehearts", () -> c.flightDamageHearts, v -> c.flightDamageHearts = v))
-                            .then(intSetting(mod, "flightperdamage", 0, 3600, () -> c.flightPerDamageSeconds, v -> c.flightPerDamageSeconds = v))
+                            .then(doubleSetting(mod, "flightperdamage", () -> c.flightPerDamageSeconds, v -> c.flightPerDamageSeconds = v))
                             .then(intSetting(mod, "flightperkill", 0, 3600, () -> c.flightPerKillSeconds, v -> c.flightPerKillSeconds = v))));
         });
     }
@@ -117,6 +132,23 @@ public final class Commands {
                         }));
     }
 
+    private static LiteralArgumentBuilder<ServerCommandSource> maceModeSetting(PsuAttributes mod) {
+        LiteralArgumentBuilder<ServerCommandSource> node = literal("macecooldownmode")
+                .executes(ctx -> {
+                    msg(ctx, "§emacecooldownmode: §f" + mod.config.maceCooldownMode);
+                    return 1;
+                });
+        for (String mode : ModConfig.MACE_MODES) {
+            node.then(literal(mode).executes(ctx -> {
+                mod.config.maceCooldownMode = mode;
+                mod.config.save();
+                msg(ctx, "§amacecooldownmode set to §f" + mode);
+                return 1;
+            }));
+        }
+        return node;
+    }
+
     private static LiteralArgumentBuilder<ServerCommandSource> boolSetting(PsuAttributes mod, String name,
                                                                         BooleanSupplier getter, Consumer<Boolean> setter) {
         return literal(name)
@@ -147,15 +179,25 @@ public final class Commands {
         return flightGet(ctx, mod);
     }
 
+    private static int menu(CommandContext<ServerCommandSource> ctx) {
+        ServerPlayerEntity player = ctx.getSource().getPlayer();
+        if (player == null) return help(ctx);
+        Menu.open(player);
+        return 1;
+    }
+
     private static int help(CommandContext<ServerCommandSource> ctx) {
         msg(ctx, "§6PsuAttributes");
-        msg(ctx, "§e/attributes give <player> <mace|spear|sword>");
-        msg(ctx, "§e/attributes take <player> <mace|spear|sword>");
-        msg(ctx, "§e/attributes reset <player> §7clears cooldowns and combos");
-        msg(ctx, "§e/attributes flight <player> [seconds]");
-        msg(ctx, "§e/attributes list");
-        msg(ctx, "§e/attributes settings");
-        msg(ctx, "§e/attributes set <setting> [value]");
+        msg(ctx, "§e/psu §7opens the menu");
+        msg(ctx, "§e/psu give <player> <mace|spear|sword>");
+        msg(ctx, "§e/psu take <player> <mace|spear|sword>");
+        msg(ctx, "§e/psu reset <player> §7clears cooldowns and combos");
+        msg(ctx, "§e/psu flight <player> [seconds]");
+        msg(ctx, "§e/psu list");
+        msg(ctx, "§e/psu settings");
+        msg(ctx, "§e/psu set <setting> [value]");
+        msg(ctx, "§e/psu config default §7puts every setting back to default");
+        msg(ctx, "§e/hud §7pick where each HUD shows (everyone)");
         return 1;
     }
 
@@ -216,16 +258,17 @@ public final class Commands {
 
     private static int settings(CommandContext<ServerCommandSource> ctx, PsuAttributes mod) {
         ModConfig c = mod.config;
-        msg(ctx, "§6Mace §7cooldown §f" + c.maceCooldownSeconds + "s §7multiplier §fx" + Abilities.fmt(c.maceMultiplier));
+        msg(ctx, "§6Mace §7cooldown §f" + c.maceCooldownSeconds + "s §7multiplier §fx" + Abilities.fmt(c.maceMultiplier)
+                + " §7during cooldown §f" + c.maceCooldownMode);
         msg(ctx, "§6Spear §7cooldown §f" + c.spearCooldownSeconds + "s");
         msg(ctx, "§6Sword §7hits §f" + c.swordComboHits + " §7multiplier §fx" + Abilities.fmt(c.swordMultiplier)
                 + " §7cooldown §f" + c.swordCooldownSeconds + "s");
         msg(ctx, "§6Combat log §f" + (c.combatLogEnabled ? "on" : "off") + " §7timer §f" + c.combatSeconds
-                + "s §7logout damage §f" + Abilities.fmt(c.logoutDamage));
+                + "s §7logout damage §f" + Abilities.fmt(c.logoutHearts) + " hearts");
         msg(ctx, "§6Flight §f" + (c.flightEnabled ? "on" : "off") + " §7outside combat drain §f"
                 + (c.flightDrainOutsideCombat ? "on" : "off") + " §7start §f" + c.flightStartSeconds
                 + "s §7max §f" + c.flightMaxSeconds + "s §7unlock §f" + c.flightUnlockSeconds + "s");
-        msg(ctx, "§6Flight gain §f" + c.flightPerDamageSeconds + "s §7per §f" + Abilities.fmt(c.flightDamageHearts)
+        msg(ctx, "§6Flight gain §f" + Abilities.fmt(c.flightPerDamageSeconds) + "s §7per §f" + Abilities.fmt(c.flightDamageHearts)
                 + " hearts §7dealt, §f" + c.flightPerKillSeconds + "s §7per kill");
         return 1;
     }
