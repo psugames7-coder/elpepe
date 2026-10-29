@@ -4,8 +4,11 @@ public final class PlayerState {
 
     public int maceHits;
     public boolean maceEmpowered;
-    public boolean maceAirborne;
+    public boolean maceHit;
+    public boolean maceSmash;
     public int macePendingLevel = -1;
+    public int maceLandTick = -1;
+    public int maceLastEmpoweredHit = -1000;
     public int maceCooldownUntil;
     public boolean maceCooling;
 
@@ -21,8 +24,11 @@ public final class PlayerState {
     public void resetMace() {
         maceHits = 0;
         maceEmpowered = false;
-        maceAirborne = false;
+        maceHit = false;
+        maceSmash = false;
         macePendingLevel = -1;
+        maceLandTick = -1;
+        maceLastEmpoweredHit = -1000;
         maceCooldownUntil = 0;
         maceCooling = false;
     }
