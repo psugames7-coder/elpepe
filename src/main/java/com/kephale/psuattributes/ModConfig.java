@@ -18,20 +18,24 @@ import java.util.UUID;
 public final class ModConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final int DATA_VERSION = 3;
+    private static final int DATA_VERSION = 4;
 
-    public static final String MACE_NO_WIND_BURST = "nowindburst";
+    public static final String MACE_NO_COOLDOWN = "nocooldown";
     public static final String MACE_VANILLA = "vanilla";
+    public static final String MACE_NO_WIND_BURST = "nowindburst";
     public static final String MACE_DISABLED = "disabled";
-    public static final String[] MACE_MODES = {MACE_NO_WIND_BURST, MACE_VANILLA, MACE_DISABLED};
+    public static final String[] MACE_MODES = {MACE_NO_COOLDOWN, MACE_VANILLA, MACE_NO_WIND_BURST, MACE_DISABLED};
 
     public int dataVersion = DATA_VERSION;
 
     public int maceCooldownSeconds = 20;
     public double maceMultiplier = 1.5;
-    public String maceCooldownMode = MACE_NO_WIND_BURST;
+    public String maceCooldownMode = MACE_DISABLED;
+    public double maceLandGraceSeconds = 1.0;
+    public boolean maceKillReset = true;
 
     public int spearCooldownSeconds = 15;
+    public boolean spearSneakSave = true;
 
     public int swordComboHits = 5;
     public double swordMultiplier = 1.2;
@@ -48,7 +52,7 @@ public final class ModConfig {
     public int flightUnlockSeconds = 20;
     public double flightDamageHearts = 10.0;
     public double flightPerDamageSeconds = 2.5;
-    public int flightPerKillSeconds = 10;
+    public int flightPerKillSeconds = 5;
 
     public Map<String, PlayerEntry> players = new LinkedHashMap<>();
 
@@ -73,21 +77,29 @@ public final class ModConfig {
         config.path = path;
         config.cache = new HashMap<>();
         if (config.players == null) config.players = new LinkedHashMap<>();
-        if (config.maceCooldownMode == null || maceModeIndex(config.maceCooldownMode) < 0) {
-            config.maceCooldownMode = MACE_NO_WIND_BURST;
+        boolean outdated = config.dataVersion < DATA_VERSION;
+        config.dataVersion = DATA_VERSION;
+        if (outdated) {
+            config.resetValues();
+            PsuAttributes.LOGGER.info("PsuAttributes: config was from an older version, settings reset to the new defaults");
         }
-        if (config.dataVersion < DATA_VERSION) config.dataVersion = DATA_VERSION;
+        if (config.maceCooldownMode == null || maceModeIndex(config.maceCooldownMode) < 0) {
+            config.maceCooldownMode = MACE_DISABLED;
+        }
         config.rebuildCache();
         config.save();
         return config;
     }
 
-    public void resetSettings() {
+    private void resetValues() {
         ModConfig d = new ModConfig();
         maceCooldownSeconds = d.maceCooldownSeconds;
         maceMultiplier = d.maceMultiplier;
         maceCooldownMode = d.maceCooldownMode;
+        maceLandGraceSeconds = d.maceLandGraceSeconds;
+        maceKillReset = d.maceKillReset;
         spearCooldownSeconds = d.spearCooldownSeconds;
+        spearSneakSave = d.spearSneakSave;
         swordComboHits = d.swordComboHits;
         swordMultiplier = d.swordMultiplier;
         swordCooldownSeconds = d.swordCooldownSeconds;
@@ -102,6 +114,10 @@ public final class ModConfig {
         flightDamageHearts = d.flightDamageHearts;
         flightPerDamageSeconds = d.flightPerDamageSeconds;
         flightPerKillSeconds = d.flightPerKillSeconds;
+    }
+
+    public void resetSettings() {
+        resetValues();
         save();
     }
 
