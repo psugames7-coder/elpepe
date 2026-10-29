@@ -44,9 +44,22 @@ public final class CombatLog {
         ModConfig config = PsuAttributes.get().config;
         if (stopping || !config.combatLogEnabled || u == null || u <= now) return;
         if (player.isDead() || player.isCreative() || player.isSpectator()) return;
-        ServerWorld world = (ServerWorld) player.getEntityWorld();
-        player.damage(world, player.getDamageSources().generic(), (float) config.logoutDamage);
-        PsuAttributes.LOGGER.info("PsuAttributes: {} logged out in combat, dealt {} damage",
-                player.getGameProfile().name(), config.logoutDamage);
+
+        float damage = (float) Math.max(0.0, config.logoutHearts * 2.0);
+        float absorption = player.getAbsorptionAmount();
+        float fromAbsorption = Math.min(absorption, damage);
+        if (fromAbsorption > 0.0F) player.setAbsorptionAmount(absorption - fromAbsorption);
+        float rest = damage - fromAbsorption;
+        float health = player.getHealth();
+        if (rest > 0.0F) {
+            if (rest < health) {
+                player.setHealth(health - rest);
+            } else {
+                ServerWorld world = (ServerWorld) player.getEntityWorld();
+                player.damage(world, player.getDamageSources().genericKill(), Float.MAX_VALUE);
+            }
+        }
+        PsuAttributes.LOGGER.info("PsuAttributes: {} logged out in combat, took {} hearts",
+                player.getGameProfile().name(), Abilities.fmt(config.logoutHearts));
     }
 }
