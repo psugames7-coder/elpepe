@@ -20,7 +20,7 @@ public final class Flight {
             if (!drains(player, now)) return true;
             PlayerDataStore.Entry d = mod.data.get(player);
             if (d.flightLocked || d.flightTicks <= 0) {
-                Abilities.bar(player, "Flight locked " + (d.flightTicks / 20) + "/" + mod.config.flightUnlockSeconds + "s", Formatting.RED);
+                Abilities.barRepeat(player, "Flight locked " + (d.flightTicks / 20) + "/" + mod.config.flightUnlockSeconds + "s", Formatting.RED);
                 return false;
             }
             return true;
@@ -83,11 +83,21 @@ public final class Flight {
             rewards++;
         }
         mod.data.markDirty();
-        if (rewards > 0) add(attacker, rewards * Math.max(0, mod.config.flightPerDamageSeconds) * 20);
+        if (rewards > 0) add(attacker, (int) Math.round(rewards * Math.max(0.0, mod.config.flightPerDamageSeconds) * 20.0));
     }
 
     static void onKill(ServerPlayerEntity killer) {
         add(killer, Math.max(0, PsuAttributes.get().config.flightPerKillSeconds) * 20);
+    }
+
+    static float fraction(ServerPlayerEntity player) {
+        PsuAttributes mod = PsuAttributes.get();
+        int max = Math.max(1, mod.config.flightMaxSeconds * 20);
+        return mod.data.get(player).flightTicks / (float) max;
+    }
+
+    static boolean locked(ServerPlayerEntity player) {
+        return PsuAttributes.get().data.get(player).flightLocked;
     }
 
     static String hud(ServerPlayerEntity player) {
