@@ -21,7 +21,7 @@ public final class SwordAbility {
     }
 
     static void afterHit(ServerPlayerEntity player, PlayerState s, LivingEntity target, ItemStack weapon, boolean hit, int now) {
-        if (!hit || target == player || !isSword(player, weapon) || s.swordActive) return;
+        if (!hit || !(target instanceof ServerPlayerEntity) || target == player || !isSword(player, weapon) || s.swordActive) return;
         if (s.swordCooling && now < s.swordCooldownUntil) return;
         s.swordHits++;
         ModConfig config = PsuAttributes.get().config;
@@ -56,12 +56,12 @@ public final class SwordAbility {
     static void tick(ServerPlayerEntity player, PlayerState s, int now) {
         if (s.swordCooling && now >= s.swordCooldownUntil) {
             s.swordCooling = false;
-            Abilities.bar(player, "Combo available", Formatting.GREEN);
+            Abilities.ready(player, "Combo available");
         }
     }
 
     static String cooldownText(PlayerState s, int now) {
         if (!s.swordCooling || now >= s.swordCooldownUntil) return null;
-        return "Combo " + Abilities.secondsLeft(s.swordCooldownUntil, now) + "s";
+        return "§cCombo " + Abilities.secondsLeft(s.swordCooldownUntil, now) + "s";
     }
 }
