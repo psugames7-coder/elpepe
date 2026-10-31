@@ -18,7 +18,7 @@ import java.util.UUID;
 public final class ModConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final int DATA_VERSION = 4;
+    private static final int DATA_VERSION = 5;
 
     public static final String MACE_NO_COOLDOWN = "nocooldown";
     public static final String MACE_VANILLA = "vanilla";
@@ -49,7 +49,7 @@ public final class ModConfig {
     public boolean flightDrainOutsideCombat = false;
     public int flightStartSeconds = 20;
     public int flightMaxSeconds = 25;
-    public int flightUnlockSeconds = 20;
+    public int flightUnlockSeconds = 15;
     public double flightDamageHearts = 10.0;
     public double flightPerDamageSeconds = 2.5;
     public int flightPerKillSeconds = 5;
@@ -77,11 +77,13 @@ public final class ModConfig {
         config.path = path;
         config.cache = new HashMap<>();
         if (config.players == null) config.players = new LinkedHashMap<>();
-        boolean outdated = config.dataVersion < DATA_VERSION;
+        int oldVersion = config.dataVersion;
         config.dataVersion = DATA_VERSION;
-        if (outdated) {
+        if (oldVersion < 4) {
             config.resetValues();
             PsuAttributes.LOGGER.info("PsuAttributes: config was from an older version, settings reset to the new defaults");
+        } else if (oldVersion < 5 && config.flightUnlockSeconds == 20) {
+            config.flightUnlockSeconds = 15;
         }
         if (config.maceCooldownMode == null || maceModeIndex(config.maceCooldownMode) < 0) {
             config.maceCooldownMode = MACE_DISABLED;
