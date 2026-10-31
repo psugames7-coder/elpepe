@@ -21,7 +21,7 @@ public final class Flight {
             if (!drains(player, now)) return true;
             PlayerDataStore.Entry d = mod.data.get(player);
             if (d.flightLocked || d.flightTicks <= 0) {
-                Abilities.barRepeat(player, "✈ locked " + (d.flightTicks / 20) + "/" + mod.config.flightUnlockSeconds + "s", Formatting.RED);
+                Abilities.barRepeat(player, "✈ locked " + secs(d.flightTicks) + "/" + mod.config.flightUnlockSeconds + "s", Formatting.RED);
                 return false;
             }
             return true;
@@ -109,11 +109,23 @@ public final class Flight {
         return PsuAttributes.get().data.get(player).flightLocked;
     }
 
+    static String secs(int ticks) {
+        return Abilities.fmt(Math.round(Math.max(0, ticks) / 2.0) / 10.0);
+    }
+
+    static void resetOnDeath(ServerPlayerEntity player) {
+        PsuAttributes mod = PsuAttributes.get();
+        PlayerDataStore.Entry d = mod.data.get(player);
+        d.flightTicks = Math.max(0, mod.config.flightStartSeconds) * 20;
+        d.flightLocked = d.flightTicks <= 0;
+        d.damageBank = 0;
+        mod.data.markDirty();
+    }
+
     static String hud(ServerPlayerEntity player) {
         PsuAttributes mod = PsuAttributes.get();
         PlayerDataStore.Entry d = mod.data.get(player);
-        int secs = (d.flightTicks + 19) / 20;
-        if (d.flightLocked) return "§8✈ " + secs + "/" + mod.config.flightUnlockSeconds + "s";
-        return "§b✈ " + secs + "s";
+        if (d.flightLocked) return "§8✈ " + secs(d.flightTicks) + "/" + mod.config.flightUnlockSeconds + "s";
+        return "§b✈ " + secs(d.flightTicks) + "s";
     }
 }
