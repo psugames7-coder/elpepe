@@ -7,7 +7,6 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 public final class SpearAbility {
@@ -23,18 +22,19 @@ public final class SpearAbility {
             PsuAttributes mod = PsuAttributes.get();
             if (mod == null || !mod.has(player, AttributeType.SPEAR)) return true;
             if (!holdsLunge(player)) return true;
-            if (player.hasVehicle() || player.isGliding() || player.isTouchingWater()) return true;
-            if (mod.config.spearSneakSave && player.isSneaking()) return false;
             PlayerState s = mod.state(player);
             int now = mod.now();
-            if (s.spearCooling && now < s.spearCooldownUntil) return false;
+            boolean cooling = s.spearCooling && now < s.spearCooldownUntil;
+            if (cooling) s.spearShowUntil = now + Abilities.SHOW_TICKS;
+            if (player.hasVehicle() || player.isGliding() || player.isTouchingWater()) return true;
+            if (mod.config.spearSneakSave && player.isSneaking()) return false;
+            if (cooling) return false;
             if (s.spearAirChain) return true;
             if (player.isOnGround()) {
                 startCooldown(s, now);
                 return true;
             }
             s.spearAirChain = true;
-            Abilities.bar(player, "Air lunges", Formatting.AQUA);
             return true;
         } catch (Throwable t) {
             PsuAttributes.LOGGER.warn("PsuAttributes: lunge check failed", t);
@@ -69,12 +69,13 @@ public final class SpearAbility {
         }
         if (s.spearCooling && now >= s.spearCooldownUntil) {
             s.spearCooling = false;
-            Abilities.bar(player, "Lunge available", Formatting.GREEN);
+            Abilities.ready(player, "Lunge available");
         }
     }
 
     static String cooldownText(PlayerState s, int now) {
+        if (s.spearAirChain) return "§bAir lunges";
         if (!s.spearCooling || now >= s.spearCooldownUntil) return null;
-        return "Lunge " + Abilities.secondsLeft(s.spearCooldownUntil, now) + "s";
+        return "§cLunge " + Abilities.secondsLeft(s.spearCooldownUntil, now) + "s";
     }
 }
