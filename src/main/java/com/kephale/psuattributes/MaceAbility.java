@@ -4,6 +4,7 @@ import com.kephale.psuattributes.mixin.PlayerEntityAccessor;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.enchantment.Enchantment;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.DamageType;
 import net.minecraft.item.ItemStack;
@@ -26,6 +27,7 @@ public final class MaceAbility {
             RegistryKey.of(RegistryKeys.DAMAGE_TYPE, Identifier.ofVanilla("mace_smash"));
     private static final double FORCED_FALL = 2.0;
     private static final int RELAND_DELAY = 5;
+    private static final int CHAIN_KILL_COOLDOWN_SECONDS = 10;
     private static boolean loggedOverride;
 
     public record Prepared(ItemStack weapon, ServerPlayerEntity player, double savedFall) {
@@ -46,17 +48,19 @@ public final class MaceAbility {
         return s.maceCooling && now < s.maceCooldownUntil;
     }
 
-    static float beforeDamage(ServerPlayerEntity player, PlayerState s, DamageSource source, ItemStack weapon,
-                              float amount, int now) {
+    static float beforeDamage(ServerPlayerEntity player, PlayerState s, LivingEntity target, DamageSource source,
+                              ItemStack weapon, float amount, int now) {
         boolean smash = source.isOf(MACE_SMASH);
         boolean mace = smash || isMace(player, weapon);
         s.maceHit = mace;
         s.maceSmash = smash;
+        s.maceLoadTarget = target instanceof ServerPlayerEntity && target != player;
         if (!mace) return amount;
         if (cooling(s, now)) {
+            s.maceShowUntil = now + Abilities.SHOW_TICKS;
             return ModConfig.MACE_DISABLED.equals(cfg().maceCooldownMode) ? Float.NaN : amount;
         }
-        if (s.maceEmpowered || (smash && s.maceHits >= 2)) {
+        if (s.maceEmpowered || (smash && s.maceLoadTarget && s.maceHits >= 2)) {
             return amount * (float) cfg().maceMultiplier;
         }
         return amount;
@@ -65,8 +69,10 @@ public final class MaceAbility {
     static void afterDamage(ServerPlayerEntity player, PlayerState s, boolean hit, int now) {
         if (!s.maceHit) return;
         boolean smash = s.maceSmash;
+        boolean loadTarget = s.maceLoadTarget;
         s.maceHit = false;
         s.maceSmash = false;
+        s.maceLoadTarget = false;
         if (!hit) return;
         if (cooling(s, now)) {
             if (ModConfig.MACE_NO_WIND_BURST.equals(cfg().maceCooldownMode)) s.macePendingLevel = 0;
@@ -79,7 +85,7 @@ public final class MaceAbility {
             Abilities.bar(player, "Chain hit", Formatting.GOLD);
             return;
         }
-        if (!smash) {
+        if (!smash || !loadTarget) {
             s.macePendingLevel = 0;
             return;
         }
@@ -143,12 +149,15 @@ public final class MaceAbility {
     }
 
     static void startCooldown(ServerPlayerEntity player, PlayerState s, int now) {
+        boolean chainKill = s.maceChainKill;
         s.maceEmpowered = false;
         s.maceHits = 0;
         s.macePendingLevel = -1;
         s.maceLandTick = -1;
+        s.maceChainKill = false;
         String mode = cfg().maceCooldownMode;
-        int ticks = Math.max(0, cfg().maceCooldownSeconds) * 20;
+        int seconds = chainKill ? CHAIN_KILL_COOLDOWN_SECONDS : cfg().maceCooldownSeconds;
+        int ticks = Math.max(0, seconds) * 20;
         if (ModConfig.MACE_NO_COOLDOWN.equals(mode) || ticks <= 0) {
             s.maceCooldownUntil = 0;
             s.maceCooling = false;
@@ -162,11 +171,13 @@ public final class MaceAbility {
     }
 
     static void onKill(ServerPlayerEntity player, PlayerState s) {
+        if (s.maceEmpowered) s.maceChainKill = true;
         if (!cfg().maceKillReset || !s.maceCooling) return;
         s.maceCooling = false;
         s.maceCooldownUntil = 0;
+        s.maceShowUntil = 0;
         clearItemCooldown(player);
-        Abilities.bar(player, "Mace available", Formatting.GREEN);
+        Abilities.ready(player, "Mace available");
     }
 
     static void clearItemCooldown(ServerPlayerEntity player) {
@@ -187,12 +198,13 @@ public final class MaceAbility {
         }
         if (s.maceCooling && now >= s.maceCooldownUntil) {
             s.maceCooling = false;
-            Abilities.bar(player, "Mace available", Formatting.GREEN);
+            s.maceShowUntil = 0;
+            Abilities.ready(player, "Mace available");
         }
     }
 
     static String cooldownText(PlayerState s, int now) {
         if (!s.maceCooling || now >= s.maceCooldownUntil) return null;
-        return "Mace " + Abilities.secondsLeft(s.maceCooldownUntil, now) + "s";
+        return "§cMace " + Abilities.secondsLeft(s.maceCooldownUntil, now) + "s";
     }
 }
