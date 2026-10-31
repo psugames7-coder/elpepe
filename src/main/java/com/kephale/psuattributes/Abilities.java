@@ -5,11 +5,15 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
+import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 
 public final class Abilities {
 
@@ -30,7 +34,7 @@ public final class Abilities {
             PsuAttributes mod = PsuAttributes.get();
             int now = mod.now();
             float out = amount;
-            if (mod.has(player, AttributeType.MACE)) out = MaceAbility.beforeDamage(player, mod.state(player), source, weapon, out, now);
+            if (mod.has(player, AttributeType.MACE)) out = MaceAbility.beforeDamage(player, mod.state(player), target, source, weapon, out, now);
             if (Float.isNaN(out)) return out;
             if (mod.has(player, AttributeType.SWORD)) out = SwordAbility.beforeDamage(player, mod.state(player), weapon, out);
             return out;
@@ -74,9 +78,22 @@ public final class Abilities {
         Hud.ability(player, message, color, false);
     }
 
+    public static void ready(ServerPlayerEntity player, String message) {
+        Hud.ability(player, message, Formatting.GREEN, false);
+        try {
+            Registries.SOUND_EVENT.getEntry(Identifier.ofVanilla("block.anvil.land")).ifPresent(sound ->
+                    player.networkHandler.sendPacket(new PlaySoundS2CPacket(sound, SoundCategory.PLAYERS,
+                            player.getX(), player.getY(), player.getZ(), 0.8F, 0.5F, player.getRandom().nextLong())));
+        } catch (Throwable t) {
+            PsuAttributes.LOGGER.warn("PsuAttributes: ready sound failed", t);
+        }
+    }
+
     public static void barRepeat(ServerPlayerEntity player, String message, Formatting color) {
         Hud.ability(player, message, color, true);
     }
+
+    public static final int SHOW_TICKS = 40;
 
     public static int secondsLeft(int until, int now) {
         return Math.max(0, (until - now + 19) / 20);
