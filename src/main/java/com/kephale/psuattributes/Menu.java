@@ -275,7 +275,7 @@ public final class Menu {
 
             PlayerDataStore.Entry d = entry(selected);
             if (d != null) {
-                inv.setStack(SLOT_FLIGHT, named(Items.ELYTRA, "§bFlight: §f" + ((d.flightTicks + 19) / 20) + "s"
+                inv.setStack(SLOT_FLIGHT, named(Items.ELYTRA, "§bFlight: §f" + Flight.secs(d.flightTicks) + "s"
                                 + (d.flightLocked ? " §c(locked)" : ""),
                         line("§eLeft §7+5s   §eRight §7-5s"),
                         line("§eShift left §7max   §eShift right §70")));
@@ -366,7 +366,7 @@ public final class Menu {
         for (AttributeType t : mod.config.get(id)) attrs.add(t.id());
         lore.add(line("§7Attributes: " + (attrs.isEmpty() ? "§8none" : "§e" + String.join(", ", attrs))));
         PlayerDataStore.Entry d = entry(id);
-        if (d != null) lore.add(line("§7Flight: §b" + ((d.flightTicks + 19) / 20) + "s" + (d.flightLocked ? " §c(locked)" : "")));
+        if (d != null) lore.add(line("§7Flight: §b" + Flight.secs(d.flightTicks) + "s" + (d.flightLocked ? " §c(locked)" : "")));
         ServerPlayerEntity p = online(id);
         if (p != null) {
             lore.add(line(CombatLog.inCombat(p, mod.now()) ? "§cIn combat" : "§7Not in combat"));
