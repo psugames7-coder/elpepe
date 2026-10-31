@@ -8,10 +8,9 @@
     "PlayerSweepMixin",
     "PlayerGlideMixin",
     "EnchantmentHelperMixin",
-    "PiercingWeaponMixin",
     "PlayerEntityAccessor",
     "LivingEntityInvoker",
-    "HungerManagerAccessor"
+    "PlayerExhaustionMixin"
   ],
   "injectors": {
     "defaultRequire": 0
