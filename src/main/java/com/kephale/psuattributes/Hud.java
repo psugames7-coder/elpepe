@@ -3,6 +3,7 @@ package com.kephale.psuattributes;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.item.Items;
+import net.minecraft.network.packet.s2c.play.ClearTitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
@@ -50,12 +51,17 @@ public final class Hud {
     }
 
     private static final int HOLD = 40;
+    private static final int RESEND = 20;
 
     private static final class View {
         final EnumMap<Element, ServerBossBar> bars = new EnumMap<>(Element.class);
         int abilityUntil;
         int lastAction = -1000;
         int lastSubtitle = -1000;
+        String actionText;
+        int actionSent = -1000;
+        String subText;
+        int subSent = -1000;
     }
 
     private static final Map<UUID, View> views = new HashMap<>();
@@ -103,10 +109,14 @@ public final class Hud {
         switch (spot(player, Element.ABILITY)) {
             case ACTION_BAR -> {
                 v.lastAction = now;
+                v.actionText = message;
+                v.actionSent = now;
                 player.sendMessage(text, true);
             }
             case SUBTITLE -> {
                 v.lastSubtitle = now;
+                v.subText = message;
+                v.subSent = now;
                 subtitle(player, text, HOLD);
             }
             case BOSS_BAR -> {
@@ -144,25 +154,32 @@ public final class Hud {
         String flightText = flight ? Flight.hud(player) : null;
         String cooldownText = cooldowns(player, now);
 
-        List<String> action = new ArrayList<>();
-        List<String> sub = new ArrayList<>();
-        if (combatText != null) {
-            if (combatSpot == Spot.ACTION_BAR) action.add(combatText);
-            else if (combatSpot == Spot.SUBTITLE) sub.add(combatText);
+        if (now - v.lastAction >= HOLD) {
+            String line = pick(Spot.ACTION_BAR, combatText, combatSpot, flightText, flightSpot, cooldownText, cooldownSpot);
+            if (line != null) {
+                if (!line.equals(v.actionText) || now - v.actionSent >= RESEND) {
+                    player.sendMessage(Text.literal(line), true);
+                    v.actionText = line;
+                    v.actionSent = now;
+                }
+            } else if (v.actionText != null) {
+                player.sendMessage(Text.empty(), true);
+                v.actionText = null;
+            }
         }
-        if (flightText != null) {
-            if (flightSpot == Spot.ACTION_BAR) action.add(flightText);
-            else if (flightSpot == Spot.SUBTITLE) sub.add(flightText);
-        }
-        if (cooldownText != null) {
-            if (cooldownSpot == Spot.ACTION_BAR) action.add(cooldownText);
-            else if (cooldownSpot == Spot.SUBTITLE) sub.add(cooldownText);
-        }
-        if (!action.isEmpty() && now - v.lastAction >= HOLD) {
-            player.sendMessage(Text.literal(String.join("   ", action)), true);
-        }
-        if (!sub.isEmpty() && now - v.lastSubtitle >= HOLD) {
-            subtitle(player, Text.literal(String.join("   ", sub)), 15);
+
+        if (now - v.lastSubtitle >= HOLD) {
+            String line = pick(Spot.SUBTITLE, combatText, combatSpot, flightText, flightSpot, cooldownText, cooldownSpot);
+            if (line != null) {
+                if (!line.equals(v.subText) || now - v.subSent >= 10) {
+                    subtitle(player, Text.literal(line), 15);
+                    v.subText = line;
+                    v.subSent = now;
+                }
+            } else if (v.subText != null) {
+                player.networkHandler.sendPacket(new ClearTitleS2CPacket(false));
+                v.subText = null;
+            }
         }
 
         float combatPct = 0.0F;
@@ -174,7 +191,6 @@ public final class Hud {
         updateBar(v, Element.FLIGHT, player, flight && flightSpot == Spot.BOSS_BAR,
                 flightText, flight ? Flight.fraction(player) : 0.0F,
                 flight && Flight.locked(player) ? BossBar.Color.WHITE : BossBar.Color.BLUE);
-
         updateBar(v, Element.COOLDOWN, player, cooldownText != null && cooldownSpot == Spot.BOSS_BAR,
                 cooldownText, cooldownFraction(player, now), BossBar.Color.PURPLE);
 
@@ -184,24 +200,37 @@ public final class Hud {
         }
     }
 
+    private static String pick(Spot where, String combatText, Spot combatSpot, String flightText, Spot flightSpot,
+                               String cooldownText, Spot cooldownSpot) {
+        if (cooldownText != null && cooldownSpot == where) return cooldownText;
+        List<String> parts = new ArrayList<>();
+        if (combatText != null && combatSpot == where) parts.add(combatText);
+        if (flightText != null && flightSpot == where) parts.add(flightText);
+        return parts.isEmpty() ? null : String.join("   ", parts);
+    }
+
     private static String cooldowns(ServerPlayerEntity player, int now) {
         PsuAttributes mod = PsuAttributes.get();
         PlayerState s = mod.peek(player);
         if (s == null) return null;
         List<String> parts = new ArrayList<>();
-        if (showMace(mod, player)) add(parts, MaceAbility.cooldownText(s, now));
-        if (showSpear(mod, player)) add(parts, SpearAbility.cooldownText(s, now));
+        if (showMace(mod, player, s, now)) add(parts, MaceAbility.cooldownText(s, now));
+        if (mod.has(player, AttributeType.SPEAR) && (s.spearAirChain || showSpear(player, s, now))) {
+            add(parts, SpearAbility.cooldownText(s, now));
+        }
         if (showSword(mod, player)) add(parts, SwordAbility.cooldownText(s, now));
-        return parts.isEmpty() ? null : "§c" + String.join("  ", parts);
+        return parts.isEmpty() ? null : String.join("  ", parts);
     }
 
-    private static boolean showMace(PsuAttributes mod, ServerPlayerEntity player) {
-        return mod.has(player, AttributeType.MACE) && player.getMainHandStack().isOf(Items.MACE)
+    private static boolean showMace(PsuAttributes mod, ServerPlayerEntity player, PlayerState s, int now) {
+        if (!mod.has(player, AttributeType.MACE)) return false;
+        if (now < s.maceShowUntil) return true;
+        return player.getMainHandStack().isOf(Items.MACE)
                 && !ModConfig.MACE_DISABLED.equals(mod.config.maceCooldownMode);
     }
 
-    private static boolean showSpear(PsuAttributes mod, ServerPlayerEntity player) {
-        return mod.has(player, AttributeType.SPEAR) && SpearAbility.holdsLunge(player);
+    private static boolean showSpear(ServerPlayerEntity player, PlayerState s, int now) {
+        return now < s.spearShowUntil || SpearAbility.holdsLunge(player);
     }
 
     private static boolean showSword(PsuAttributes mod, ServerPlayerEntity player) {
@@ -216,10 +245,17 @@ public final class Hud {
         PsuAttributes mod = PsuAttributes.get();
         PlayerState s = mod.peek(player);
         if (s == null) return 0.0F;
+        if (s.spearAirChain) return 1.0F;
         float best = 0.0F;
-        if (s.maceCooling && showMace(mod, player)) best = Math.max(best, frac(s.maceCooldownUntil, now, mod.config.maceCooldownSeconds));
-        if (s.spearCooling && showSpear(mod, player)) best = Math.max(best, frac(s.spearCooldownUntil, now, mod.config.spearCooldownSeconds));
-        if (s.swordCooling && showSword(mod, player)) best = Math.max(best, frac(s.swordCooldownUntil, now, mod.config.swordCooldownSeconds));
+        if (s.maceCooling && showMace(mod, player, s, now)) {
+            best = Math.max(best, frac(s.maceCooldownUntil, now, mod.config.maceCooldownSeconds));
+        }
+        if (s.spearCooling && mod.has(player, AttributeType.SPEAR) && showSpear(player, s, now)) {
+            best = Math.max(best, frac(s.spearCooldownUntil, now, mod.config.spearCooldownSeconds));
+        }
+        if (s.swordCooling && showSword(mod, player)) {
+            best = Math.max(best, frac(s.swordCooldownUntil, now, mod.config.swordCooldownSeconds));
+        }
         return best;
     }
 
@@ -267,7 +303,7 @@ public final class Hud {
     }
 
     private static void subtitle(ServerPlayerEntity player, Text text, int stay) {
-        player.networkHandler.sendPacket(new TitleFadeS2CPacket(0, stay, 5));
+        player.networkHandler.sendPacket(new TitleFadeS2CPacket(0, stay, 0));
         player.networkHandler.sendPacket(new SubtitleS2CPacket(text));
         player.networkHandler.sendPacket(new TitleS2CPacket(Text.empty()));
     }
