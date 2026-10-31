@@ -167,7 +167,7 @@ public final class Commands {
     private static int flightGet(CommandContext<ServerCommandSource> ctx, PsuAttributes mod) throws CommandSyntaxException {
         ServerPlayerEntity player = EntityArgumentType.getPlayer(ctx, "player");
         PlayerDataStore.Entry d = mod.data.get(player);
-        msg(ctx, "§f" + player.getGameProfile().name() + "§7 flight §f" + ((d.flightTicks + 19) / 20) + "s"
+        msg(ctx, "§f" + player.getGameProfile().name() + "§7 flight §f" + Flight.secs(d.flightTicks) + "s"
                 + (d.flightLocked ? " §c(locked)" : ""));
         return 1;
     }
