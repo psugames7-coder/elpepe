@@ -104,19 +104,27 @@ public final class PsuAttributes implements ModInitializer {
         for (ServerPlayerEntity player : s.getPlayerManager().getPlayerList()) {
             try {
                 Flight.tick(player, now);
+                PlayerState st = state(player);
+                boolean combat = CombatLog.inCombat(player, now);
+                if (st.wasInCombat && !combat) st.resetProgress();
+                st.wasInCombat = combat;
                 EnumSet<AttributeType> set = config.get(player.getUuid());
                 if (!set.isEmpty()) {
-                    PlayerState st = state(player);
                     if (set.contains(AttributeType.MACE)) MaceAbility.tick(player, st, now);
                     if (set.contains(AttributeType.SPEAR)) SpearAbility.tick(player, st, now);
                     if (set.contains(AttributeType.SWORD)) SwordAbility.tick(player, st, now);
-                    st.macePendingLevel = -1;
-                    st.maceHit = false;
-                    st.maceSmash = false;
                 }
-                if (now % 10 == 0) Hud.tick(player, now);
+                st.macePendingLevel = -1;
+                st.maceHit = false;
+                st.maceSmash = false;
+                st.maceLoadTarget = false;
             } catch (Throwable t) {
                 LOGGER.warn("PsuAttributes: tick failed for {}", player.getGameProfile().name(), t);
+            }
+            try {
+                Hud.tick(player, now);
+            } catch (Throwable t) {
+                LOGGER.warn("PsuAttributes: hud failed for {}", player.getGameProfile().name(), t);
             }
         }
         if (now % 1200 == 0) data.saveIfDirty();
@@ -134,15 +142,11 @@ public final class PsuAttributes implements ModInitializer {
             }
 
             CombatLog.clear(player.getUuid());
-
-            PlayerState st = states.get(player.getUuid());
-            if (st == null) return;
-            int now = now();
-            if (st.maceEmpowered) MaceAbility.startCooldown(player, st, now);
-            st.maceHits = 0;
-            if (st.spearAirChain) SpearAbility.startCooldown(st, now);
-            if (st.swordActive) SwordAbility.end(player, st, now);
-            else st.swordHits = 0;
+            resetState(player.getUuid(), null);
+            PlayerState st = state(player);
+            st.resetProgress();
+            st.wasInCombat = false;
+            Flight.resetOnDeath(player);
         } catch (Throwable t) {
             LOGGER.warn("PsuAttributes: death handling failed", t);
         }
